@@ -1,0 +1,39 @@
+{
+  "name": "codenzia/filament-gantt",
+  "description": "Filament Gantt page package",
+  "keywords": [
+    "laravel",
+    "filament",
+    "db-flow"
+  ],
+  "homepage": "https://github.com/codenzia/filament-db-flow",
+  "authors": [
+      {
+          "name": "Codenzia",
+          "email": "mahmoud@codenzia.com",
+          "role": "Developer"
+      }
+  ],
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Codenzia\\FilamentGantt\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Codenzia\\FilamentGantt\\FilamentGanttServiceProvider"
+      ]
+    }
+  },
+  "require": {
+    "php": "^8.3",
+    "filament/filament": "^4.0",
+    "spatie/laravel-package-tools": "^1.17.0",
+    "livewire/livewire": "^3.0"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
