@@ -2,21 +2,9 @@
 
 Package for the Gantt Filament page.
 
-## Install (local path)
-Add to your app `composer.json`:
+## Install
 
-```json
-{
-  "repositories": [
-    { "type": "path", "url": "../filament-gantt" }
-  ],
-  "require": {
-    "vendor/filament-gantt": "*"
-  }
-}
-```
-
-Then run `composer update`.
+run `composer require codenzia/filament-gantt`.
 
 ## Publish assets
 

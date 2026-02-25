@@ -63,6 +63,35 @@ window.__ganttStatusIconSvg = function (iconClass) {
   return map[iconClass] || '';
 };
 
+window.__ganttTemplates = {
+  assignee: task => {
+    if (!task.assignee) return '';
+    const path = task.assignee.profile_photo_url || task.assignee.profile_photo_path || '';
+    const name = task.assignee.name || 'User';
+    const avatarUrl = path 
+      ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + path.replace(/^\//, ''))
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF`;
+    
+    return `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;vertical-align:middle;border:1px solid #e5e7eb;display:block;margin:0 auto;" title="${window.__ganttEscape(name)}">`;
+  },
+  priority: obj => {
+    const p = (obj.priority || '').toString().toLowerCase();
+    if (p === 'high' || p === '1') return '<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider">High</span>';
+    if (p === 'medium' || p === '2' || p === 'normal') return '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider">Normal</span>';
+    if (p === 'low' || p === '3') return '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">Low</span>';
+    return (obj.priority ?? '').toString();
+  }
+};
+
+window.__resolveGanttColumns = function(cols) {
+  return cols.map(col => {
+    if (col.template && typeof col.template === 'string' && window.__ganttTemplates[col.template]) {
+      return { ...col, template: window.__ganttTemplates[col.template] };
+    }
+    return col;
+  });
+};
+
 // Gantt Initialization
 window.__initGantt = async function () {
   const el = document.getElementById('gantt_here');
@@ -101,26 +130,39 @@ window.__initGantt = async function () {
   el.dataset.ganttInited = '1';
 
   window.__applyGanttTheme(false);
-  gantt.plugins({ quick_info: true,export_api: true, });
+  gantt.plugins({ quick_info: true, export_api: true, marker: true });
   gantt.config.date_format = "%Y-%m-%d %H:%i:%s";
-  gantt.config.columns = [
+  gantt.config.row_height = 42;
+  gantt.config.bar_height = 28;
+  gantt.config.round_dnd_dates = false;
+  gantt.config.drag_progress = true;
+  gantt.config.details_on_dblclick = false; // Usually double-click is better not to trigger default lightbox if you use custom Filament modals
+  gantt.config.show_errors = false;
+  gantt.config.grid_width = 380;
+  
+  // Custom tooltips
+  gantt.templates.tooltip_text = function(start, end, task){
+    const format = gantt.date.date_to_str("%Y-%m-%d");
+    return `<b>Task:</b> ${window.__ganttEscape(task.text)}<br/><b>Start:</b> ${format(start)}<br/><b>End:</b> ${format(end)}<br/><b>Progress:</b> ${Math.round(task.progress * 100)}%`;
+  };
+
+  const rawCols = el.dataset.ganttColumns ? JSON.parse(el.dataset.ganttColumns) : [
     { name: "text", label: "Task name", tree: true, width: "*", resize: true },
     { name: "start_date", label: "Start time", align: "center", resize: true },
-    {
-      name: "priority",
-      label: "Priority",
-      align: "center",
-      width: 120,
-      template: obj => {
-        const p = (obj.priority || '').toString().toLowerCase();
-        if (p === 'high' || p === '1') return "High";
-        if (p === 'medium' || p === '2' || p === 'normal') return "Normal";
-        if (p === 'low' || p === '3') return "Low";
-        return (obj.priority ?? '').toString();
-      }
-    },
+    { name: "priority", label: "Priority", align: "center", width: 90, template: "priority" },
     { name: "status", label: "Status", align: "center", width: 90, resize: true },
   ];
+  gantt.config.columns = window.__resolveGanttColumns(rawCols);
+  window.__ganttOriginalColumns = [...gantt.config.columns];
+
+  // Today Marker
+  const dateToStr = gantt.date.date_to_str(gantt.config.task_date);
+  gantt.addMarker({
+    start_date: new Date(),
+    css: "today_marker",
+    text: "Today",
+    title: "Today: " + dateToStr(new Date())
+  });
 
   // Ensure zero-duration tasks (same start & end) are visible by giving them minimal length
   if (!window.__ganttZeroDurationHooked) {
@@ -156,8 +198,18 @@ window.__initGantt = async function () {
     const iconHtml = iconClass
       ? `<span class="gantt-status-icon" style="margin-right:6px;display:inline-flex;align-items:center;vertical-align:middle;">${window.__ganttStatusIconSvg(iconClass)}</span>`
       : '';
-    const assigneeHtml = (task.assignee && task.assignee.profile_photo_path)
-      ? `<img src="${window.__ganttEscape(task.assignee.profile_photo_path)}" alt="${window.__ganttEscape(task.assignee.name || 'User')}" title="${window.__ganttEscape(task.assignee.name || 'User')}" class="gantt-assignee-avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;margin-right:6px;vertical-align:middle;display:inline-flex;align-items:center;vertical-align:middle;">`
+    
+    let avatarUrl = '';
+    const name = task.assignee ? (task.assignee.name || 'User') : '';
+    if (task.assignee) {
+      const path = task.assignee.profile_photo_url || task.assignee.profile_photo_path || '';
+      avatarUrl = path 
+        ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + path.replace(/^\//, ''))
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF`;
+    }
+
+    const assigneeHtml = avatarUrl
+      ? `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`
       : '';
     return assigneeHtml + iconHtml + window.__ganttEscape(task.text || '');
   };
@@ -610,16 +662,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function applyColumnVisibility() {
-  if (!window.gantt) return;
-  const priorityVisible = document.querySelector('.gantt-col-toggle[data-col="priority"]')?.checked !== false;
-  const statusVisible = document.querySelector('.gantt-col-toggle[data-col="status"]')?.checked !== false;
-  const baseCols = [
-    { name: "text", label: "Task name", tree: true, width: "*", resize: true },
-    { name: "start_date", label: "Start time", align: "center", resize: true },
-  ];
-  if (priorityVisible) baseCols.push({ name: "priority", label: "Priority", align: "center", width: 120, template: gantt.config.columns.find(c=>c.name==='priority')?.template });
-  if (statusVisible) baseCols.push({ name: "status", label: "Status", align: "center", width: 90, resize: true });
-  gantt.config.columns = baseCols;
+  if (!window.gantt || !window.__ganttOriginalColumns) return;
+  
+  gantt.config.columns = window.__ganttOriginalColumns.filter(col => {
+    const toggle = document.querySelector(`.gantt-col-toggle[data-col="${col.name}"]`);
+    if (!toggle) return true; // Always show if no toggle exists
+    return toggle.checked;
+  });
+  
   gantt.render();
 }
 

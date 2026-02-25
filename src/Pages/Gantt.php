@@ -29,13 +29,30 @@ abstract class Gantt extends Page implements HasActions, HasForms
 
     public array $ganttData = [];
 
+    public array $ganttColumns = [];
+
     protected $listeners = ['refresh' => 'refreshGantt', '$refresh' => 'refreshGantt'];
 
-    public function mount(?int $projectId = null, array $assigneeFilter = [], array $ganttData = []): void
+    public function mount(?int $projectId = null, array $assigneeFilter = [], array $ganttData = [], array $ganttColumns = []): void
     {
         $this->ganttData = ! empty($ganttData)
             ? $ganttData
             : $this->getGanttDataArray($projectId, $assigneeFilter);
+
+        $this->ganttColumns = ! empty($ganttColumns)
+            ? $ganttColumns
+            : $this->getDefaultGanttColumns();
+    }
+
+    protected function getDefaultGanttColumns(): array
+    {
+        return [
+            ['name' => 'text', 'label' => 'Task name', 'tree' => true, 'width' => '*', 'resize' => true],
+            ['name' => 'assignee', 'label' => 'Assignee', 'align' => 'center', 'width' => 70, 'template' => 'assignee'],
+            ['name' => 'start_date', 'label' => 'Start time', 'align' => 'center', 'resize' => true],
+            ['name' => 'priority', 'label' => 'Priority', 'align' => 'center', 'width' => 90, 'template' => 'priority'],
+            ['name' => 'status', 'label' => 'Status', 'align' => 'center', 'width' => 90, 'resize' => true],
+        ];
     }
 
     public function setGanttData(array $ganttData): void

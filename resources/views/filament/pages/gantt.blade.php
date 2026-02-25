@@ -8,7 +8,18 @@
         $__ganttHeight = $__ganttConfig['height'] ?? '75vh';
         $__ganttMaterialIcons = (bool) ($__ganttConfig['include_material_icons'] ?? true);
         $__resolveAsset = function (string $path): string {
-            return \Illuminate\Support\Str::startsWith($path, ['http://', 'https://', '//']) ? $path : asset($path);
+            if (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://', '//'])) {
+                return $path;
+            }
+            
+            $assetUrl = asset($path);
+            $fullPath = public_path($path);
+            
+            if (file_exists($fullPath)) {
+                return $assetUrl . '?v=' . filemtime($fullPath);
+            }
+            
+            return $assetUrl;
         };
     @endphp
 
@@ -58,14 +69,14 @@
                         </div>
                         <div class="flex flex-col gap-2">
                             <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('Columns') }}:</span>
-                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" class="gantt-col-toggle form-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700" data-col="priority" checked>
-                                <span class="text-xs font-medium">{{ __('Priority Column') }}</span>
-                            </label>
-                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" class="gantt-col-toggle form-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700" data-col="status" checked>
-                                <span class="text-xs font-medium">{{ __('Status Column') }}</span>
-                            </label>
+                            @foreach($this->ganttColumns as $column)
+                                @if(isset($column['name']) && $column['name'] !== 'text')
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" class="gantt-col-toggle form-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700" data-col="{{ $column['name'] }}" checked>
+                                        <span class="text-xs font-medium">{{ __($column['label'] ?? ucfirst($column['name'])) }}</span>
+                                    </label>
+                                @endif
+                            @endforeach
                         </div>
                     </div>
                 </div>
@@ -106,6 +117,157 @@
                     @if ($__ganttMaterialIcons)
                         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
                     @endif
+                    <style>
+                        /* Filament-inspired Modern Gantt UI Enhancements */
+                        .gantt_task_line {
+                            border-radius: 6px !important;
+                            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            transition: all 0.2s ease-in-out;
+                        }
+                        .gantt_task_line:hover {
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                            transform: translateY(-1px);
+                            z-index: 10;
+                        }
+                        .gantt_task_progress {
+                            border-radius: 5px !important;
+                            background: rgba(0, 0, 0, 0.15) !important;
+                        }
+                        .dark .gantt_task_progress {
+                            background: rgba(255, 255, 255, 0.2) !important;
+                        }
+                        .gantt_task_content {
+                            font-size: 13px;
+                            font-weight: 500;
+                            color: #fff;
+                            text-align: start;
+                            padding-left: 5px;                            
+                        }
+                        .gantt_grid_scale, .gantt_task_scale {
+                            background-color: transparent !important;
+                            border-bottom: 1px solid var(--fi-color-gray-200) !important;
+                        }
+                        .dark .gantt_grid_scale, .dark .gantt_task_scale {
+                            border-bottom-color: var(--fi-color-gray-700) !important;
+                        }
+                        .gantt_grid_scale .gantt_scale_cell {
+                            font-weight: 600;
+                            color: var(--fi-color-gray-700) !important;
+                        }
+                        .dark .gantt_grid_scale .gantt_scale_cell {
+                            color: var(--fi-color-gray-300) !important;
+                        }
+                        .gantt_task_scale .gantt_scale_cell {
+                            font-weight: 500;
+                            color: var(--fi-color-gray-600) !important;
+                        }
+                        .dark .gantt_task_scale .gantt_scale_cell {
+                            color: var(--fi-color-gray-400) !important;
+                        }
+                        .gantt_grid_data .gantt_row.gantt_selected, 
+                        .gantt_task_data .gantt_row.gantt_selected {
+                            background-color: rgba(var(--fi-color-primary-500), 0.05) !important;
+                        }
+                        .dark .gantt_grid_data .gantt_row.gantt_selected, 
+                        .dark .gantt_task_data .gantt_row.gantt_selected {
+                            background-color: rgba(var(--fi-color-primary-500), 0.15) !important;
+                        }
+                        .gantt_grid_data .gantt_row:hover, 
+                        .gantt_task_data .gantt_row:hover {
+                            background-color: var(--fi-color-gray-50) !important;
+                        }
+                        .dark .gantt_grid_data .gantt_row:hover, 
+                        .dark .gantt_task_data .gantt_row:hover {
+                            background-color: rgba(255,255,255,0.03) !important;
+                        }
+                        .gantt_grid_data .gantt_row {
+                            border-bottom: 1px solid var(--fi-color-gray-200) !important;
+                        }
+                        .dark .gantt_grid_data .gantt_row {
+                            border-bottom-color: var(--fi-color-gray-800) !important;
+                        }
+                        .gantt_task_row {
+                            border-bottom: 1px dashed var(--fi-color-gray-200) !important;
+                        }
+                        .dark .gantt_task_row {
+                            border-bottom-color: rgba(255,255,255,0.05) !important;
+                        }
+                        /* Priority Colors */
+                        .gantt_task_line.high { background-color: rgb(239 68 68) !important; border-color: rgb(220 38 38) !important; }
+                        .gantt_task_line.medium { background-color: rgb(245 158 11) !important; border-color: rgb(217 119 6) !important; }
+                        .gantt_task_line.low { background-color: rgb(34 197 94) !important; border-color: rgb(22 163 74) !important; }
+                        
+                        /* Layout borders */
+                        .gantt_layout_cell, .gantt_layout_root {
+                            border-color: var(--fi-color-gray-200) !important;
+                        }
+                        .dark .gantt_layout_cell, .dark .gantt_layout_root {
+                            border-color: var(--fi-color-gray-800) !important;
+                        }
+                        /* Tooltip enhancement */
+                        .gantt_tooltip {
+                            background: rgba(17, 24, 39, 0.95) !important;
+                            backdrop-filter: blur(4px);
+                            border: 1px solid rgba(255,255,255,0.1) !important;
+                            border-radius: 8px !important;
+                            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+                            color: #fff !important;
+                            font-size: 13px !important;
+                            padding: 10px 14px !important;
+                            z-index: 10000 !important;
+                        }
+                        .dark .gantt_tooltip {
+                            background: rgba(30, 41, 59, 0.95) !important;
+                        }
+                        /* Remove inner borders on tooltips if they exist */
+                        .gantt_tooltip * { border: none !important; }
+                        
+                        /* Avatar fix */
+                        .gantt-assignee-avatar {
+                            box-shadow: 0 0 0 2px white;
+                            display: inline-flex;
+                        }
+                        .dark .gantt-assignee-avatar {
+                            box-shadow: 0 0 0 2px #1f2937;
+                        }
+                        
+                        /* Links (Lines between tasks) */
+                        .gantt_task_link .gantt_line_wrapper div {
+                            background-color: #94a3b8 !important;
+                        }
+                        .dark .gantt_task_link .gantt_line_wrapper div {
+                            background-color: #64748b !important;
+                        }
+                        .gantt_task_link .gantt_link_arrow {
+                            border-left-color: #94a3b8 !important;
+                        }
+                        .dark .gantt_task_link .gantt_link_arrow {
+                            border-left-color: #64748b !important;
+                        }
+                        
+                        /* Today Marker */
+                        .today_marker {
+                            background-color: var(--fi-color-primary-500) !important;
+                            opacity: 0.4;
+                        }
+                        .dark .today_marker {
+                            background-color: var(--fi-color-primary-400) !important;
+                            opacity: 0.3;
+                        }
+                        .gantt_marker_content {
+                            background-color: var(--fi-color-primary-600) !important;
+                            color: white !important;
+                            border-radius: 4px;
+                            padding: 2px 6px;
+                            font-size: 11px;
+                            font-weight: 600;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                        }
+                        .dark .gantt_marker_content {
+                            background-color: var(--fi-color-primary-500) !important;
+                        }
+                    </style>
                 @endpush
 
                 @push('scripts')
@@ -148,7 +310,7 @@
                 @endpush
             @endonce
 
-            <div id="gantt_here" style="width: 100%; height:{{ $__ganttHeight }}" data-gantt-data='@json($ganttData)'></div>
+            <div id="gantt_here" style="width: 100%; height:{{ $__ganttHeight }}" data-gantt-data='@json($ganttData)' data-gantt-columns='@json($this->ganttColumns)'></div>
         </div>
     </div>
 </x-filament-panels::page>
