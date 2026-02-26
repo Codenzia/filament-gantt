@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use Codenzia\FilamentGantt\Pages\Gantt;
 use Codenzia\FilamentGantt\Tests\Unit\Pages\TestableGanttPage;
 use Illuminate\Support\Facades\Cache;
-use Livewire\Livewire;
 
 describe('Gantt Page', function () {
     it('returns zero task count when gantt data is empty', function () {
@@ -57,15 +55,19 @@ describe('Gantt Page', function () {
     });
 
     it('saveGanttFilters persists filters and updates ganttFilterPrefs', function () {
-        Livewire::test(TestableGanttPage::class)
-            ->call('saveGanttFilters', [
-                'sort' => 'priority',
-                'priorities' => ['high' => true, 'low' => true],
-                'columns' => ['text' => true],
-            ])
-            ->assertSet('ganttFilterPrefs.sort', 'priority')
-            ->assertSet('ganttFilterPrefs.priorities.high', true)
-            ->assertSet('ganttFilterPrefs.columns.text', true);
+        $filters = [
+            'sort' => 'priority',
+            'priorities' => ['high' => true, 'low' => true],
+            'columns' => ['text' => true],
+        ];
+
+        $component = new TestableGanttPage();
+        $component->saveGanttFilters($filters);
+
+        expect($component->ganttFilterPrefs)->toEqual($filters);
+
+        $key = 'filament_gantt_filters:' . TestableGanttPage::class . ':guest';
+        expect(Cache::store('file')->get($key))->toEqual($filters);
     });
 
     it('loads cached filter prefs on mount', function () {
@@ -77,9 +79,10 @@ describe('Gantt Page', function () {
         ];
         Cache::store('file')->put($key, $prefs, now()->addDays(30));
 
-        $component = Livewire::test(TestableGanttPage::class);
+        $component = new TestableGanttPage();
+        $component->mount();
 
-        expect($component->get('ganttFilterPrefs'))->toEqual($prefs);
+        expect($component->ganttFilterPrefs)->toEqual($prefs);
     });
 
     it('getGanttData returns current gantt data', function () {
