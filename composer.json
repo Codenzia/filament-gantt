@@ -34,6 +34,24 @@
     "spatie/laravel-package-tools": "^1.17.0",
     "livewire/livewire": "^3.0"
   },
+  "require-dev": {
+    "orchestra/testbench": "^9.0",
+    "pestphp/pest": "^3.0",
+    "pestphp/pest-plugin-laravel": "^3.0"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Codenzia\\FilamentGantt\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "vendor/bin/pest"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
   "minimum-stability": "dev",
   "prefer-stable": true
 }
