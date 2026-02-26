@@ -7,6 +7,7 @@ use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Cache;
 
 abstract class Gantt extends Page implements HasActions, HasForms
 {
@@ -31,6 +32,8 @@ abstract class Gantt extends Page implements HasActions, HasForms
 
     public array $ganttColumns = [];
 
+    public array $ganttFilterPrefs = [];
+
     protected $listeners = ['refresh' => 'refreshGantt', '$refresh' => 'refreshGantt'];
 
     public function mount(?int $projectId = null, array $assigneeFilter = [], array $ganttData = [], array $ganttColumns = []): void
@@ -42,26 +45,33 @@ abstract class Gantt extends Page implements HasActions, HasForms
         $this->ganttColumns = ! empty($ganttColumns)
             ? $ganttColumns
             : (! empty($this->ganttColumns) ? $this->ganttColumns : $this->getGanttColumns());
-    }
 
-    // protected function getGanttColumns(): array
-    // {
-    //     return [
-    //         ['name' => 'text', 'label' => 'Task name', 'tree' => true, 'width' => '*', 'resize' => true],
-    //         ['name' => 'start_date', 'label' => 'Start time', 'align' => 'center', 'resize' => true],
-    //         ['name' => 'priority', 'label' => 'Priority', 'align' => 'center', 'width' => 90, 'template' => 'priority'],
-    //         ['name' => 'status', 'label' => 'Status', 'align' => 'center', 'width' => 90, 'resize' => true],
-    //     ];
-    // }
-
-    public function setGanttData(array $ganttData): void
-    {
-        $this->ganttData = $ganttData;
+        $this->ganttFilterPrefs = $this->getCachedGanttFilters();
     }
 
     public function setGanttColumns(array $ganttColumns): void
     {
         $this->ganttColumns = $ganttColumns;
+    }
+
+    public function saveGanttFilters(array $filters): void
+    {
+        $key = $this->getGanttFiltersCacheKey();
+        Cache::store('file')->put($key, $filters, now()->addDays(30));
+        $this->ganttFilterPrefs = $filters;
+    }
+
+    protected function getCachedGanttFilters(): array
+    {
+        $key = $this->getGanttFiltersCacheKey();
+        $filters = Cache::store('file')->get($key, []);
+        return is_array($filters) ? $filters : [];
+    }
+
+    protected function getGanttFiltersCacheKey(): string
+    {
+        $userId = auth()->id() ?? 'guest';
+        return 'filament_gantt_filters:' . static::class . ':' . $userId;
     }
 
     public function getGanttData(): array

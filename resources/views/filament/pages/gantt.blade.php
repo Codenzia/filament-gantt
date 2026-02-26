@@ -1,6 +1,7 @@
 <x-filament-panels::page>
     @php
         $__ganttTasksCount = $this->getGanttTasksCount();
+        $__ganttColumns = $this->getGanttColumns();
         $__ganttConfig = config('filament-gantt');
         $__ganttAssets = $__ganttConfig['assets'] ?? [];
         $__ganttCss = $__ganttAssets['css'] ?? ['css/gantt.css'];
@@ -27,7 +28,7 @@
         };
     @endphp
 
-    <div class="space-y-4 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10" x-data>
+    <div class="space-y-4 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10" x-data data-gantt-livewire-id="{{ $this->getId() }}">
         {{-- Toolbar: Filters, Export, Zoom --}}
         <div class="flex flex-wrap gap-2 items-center">
             <div class="flex items-center gap-3 rounded-lg px-3 py-2 dark:bg-[#202327] bg-gray-50 ring-1 ring-gray-950/5 dark:ring-white/10">
@@ -182,6 +183,11 @@
                                         @endif
                                     @endforeach
                                 </div>
+                                <div class="pt-1">
+                                    <x-filament::button color="primary" size="sm" icon="heroicon-o-bookmark" class="rounded-md" @click="open = false; window.__ganttSaveFilters && window.__ganttSaveFilters();">
+                                        {{ __('Save filters') }}
+                                    </x-filament::button>
+                                </div>
                             </div>
                             </div>
                         </div>
@@ -268,7 +274,7 @@
                 @endpush
             @endonce
 
-            <div id="gantt_here" style="width: 100%; height:{{ $__ganttHeight }}" data-gantt-data='@json($ganttData)' data-gantt-columns='@json($this->ganttColumns)'></div>
+            <div id="gantt_here" style="width: 100%; height:{{ $__ganttHeight }}" data-gantt-data='@json($ganttData)' data-gantt-columns='@json($this->ganttColumns)' data-gantt-filters='@json($this->ganttFilterPrefs ?? [])'></div>
         </div>
     </div>
 </x-filament-panels::page>

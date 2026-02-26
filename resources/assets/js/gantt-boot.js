@@ -108,6 +108,23 @@ window.__initGantt = async function () {
     if (!document.getElementById('filters_wrapper')?.dataset.filtersInited) {
       window.__wireGanttPriorityFilters();
     }
+
+    // Dynamic column update: check if columns changed since last init
+    const latestColsRaw = el.dataset.ganttColumns ? JSON.parse(el.dataset.ganttColumns) : null;
+    if (latestColsRaw && window.gantt && window.__resolveGanttColumns) {
+        const resolved = window.__resolveGanttColumns(latestColsRaw);
+        // Compare with current original columns to see if we need to update
+        if (JSON.stringify(resolved) !== JSON.stringify(window.__ganttOriginalColumns)) {
+            window.__ganttOriginalColumns = resolved;
+            if (typeof applyColumnVisibility === 'function') {
+                applyColumnVisibility();
+            } else {
+                gantt.config.columns = resolved;
+                gantt.render();
+            }
+        }
+    }
+
     // Re-render if the element was temporarily removed and re-added
     if (window.__ganttInitedOnce && window.gantt && el.parentElement) {
       try {
@@ -148,12 +165,7 @@ window.__initGantt = async function () {
     return `<b>Task:</b> ${window.__ganttEscape(task.text)}<br/><b>Start:</b> ${format(start)}<br/><b>End:</b> ${format(end)}<br/><b>Progress:</b> ${Math.round(task.progress * 100)}%`;
   };
 
-  const rawCols = el.dataset.ganttColumns ? JSON.parse(el.dataset.ganttColumns) : [
-    { name: "text", label: "Task name", tree: true, width: "*", resize: true },
-    { name: "start_date", label: "Start time", align: "center", resize: true },
-    { name: "priority", label: "Priority", align: "center", width: 90, template: "priority" },
-    { name: "status", label: "Status", align: "center", width: 90, resize: true },
-  ];
+  const rawCols = el.dataset.ganttColumns ? JSON.parse(el.dataset.ganttColumns) : [];
   gantt.config.columns = window.__resolveGanttColumns(rawCols);
   window.__ganttOriginalColumns = [...gantt.config.columns];
 
@@ -212,7 +224,7 @@ window.__initGantt = async function () {
 
     const assigneeHtml = avatarUrl
       ? `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`
-      : '';
+      : '<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">';
     return assigneeHtml + iconHtml + window.__ganttEscape(task.text || '');
   };
 
@@ -698,6 +710,62 @@ function __saveColumnPrefs(pref) {
   } catch (_) {}
 }
 
+function __getServerFilterPrefs() {
+  const el = document.getElementById('gantt_here');
+  if (!el || !el.dataset.ganttFilters) return null;
+  try {
+    const parsed = JSON.parse(el.dataset.ganttFilters);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function __applyServerFilterPrefs(prefs) {
+  if (!prefs) return;
+  const { priorities, sort, columns } = prefs;
+
+  if (priorities && typeof priorities === "object") {
+    const wrap = document.getElementById('filters_wrapper');
+    if (wrap) {
+      const inputs = wrap.querySelectorAll('input[type="checkbox"]');
+      inputs.forEach(cb => {
+        const name = cb.name;
+        if (Object.prototype.hasOwnProperty.call(priorities, name)) {
+          cb.checked = !!priorities[name];
+        }
+      });
+      if (window.__wireGanttPriorityFilters) window.__wireGanttPriorityFilters();
+    }
+  }
+
+  if (sort) {
+    const sortRadios = document.querySelectorAll('input[name="sort_option"]');
+    sortRadios.forEach(r => {
+      r.checked = r.value === sort;
+    });
+    const selected = Array.from(sortRadios).find(r => r.checked);
+    if (selected) {
+      selected.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  if (columns && typeof columns === "object") {
+    const colToggles = document.querySelectorAll('.gantt-col-toggle');
+    if (colToggles.length) {
+      colToggles.forEach(cb => {
+        const col = cb.getAttribute("data-col");
+        if (col && Object.prototype.hasOwnProperty.call(columns, col)) {
+          cb.checked = !!columns[col];
+        }
+      });
+      applyColumnVisibility();
+      __saveColumnPrefs(columns);
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const btnPriority = document.getElementById("sort_priority");
   const btnName = document.getElementById("sort_name");
@@ -748,6 +816,11 @@ document.addEventListener("DOMContentLoaded", () => {
     applyColumnVisibility();
   }
 
+  const serverPrefs = __getServerFilterPrefs();
+  if (serverPrefs) {
+    __applyServerFilterPrefs(serverPrefs);
+  }
+
   // Ensure gantt is visible on initial load
   setTimeout(() => window.__ensureGanttInit && window.__ensureGanttInit(6), 80);
 });
@@ -778,6 +851,51 @@ function applyColumnVisibility() {
     __saveColumnPrefs(pref);
   }
 }
+
+window.__ganttGetFilterState = function () {
+  const filters = {
+    priorities: {},
+    sort: null,
+    columns: {},
+  };
+
+  const wrap = document.getElementById('filters_wrapper');
+  if (wrap) {
+    const inputs = wrap.querySelectorAll('input[type="checkbox"]');
+    inputs.forEach(cb => {
+      if (cb.name) filters.priorities[cb.name] = !!cb.checked;
+    });
+  }
+
+  const sortRadios = document.querySelectorAll('input[name="sort_option"]');
+  const selected = Array.from(sortRadios).find(r => r.checked);
+  filters.sort = selected ? selected.value : null;
+
+  const toggles = document.querySelectorAll('.gantt-col-toggle');
+  toggles.forEach(cb => {
+    const col = cb.getAttribute("data-col");
+    if (col) filters.columns[col] = !!cb.checked;
+  });
+
+  return filters;
+};
+
+window.__ganttSaveFilters = function () {
+  const filters = window.__ganttGetFilterState ? window.__ganttGetFilterState() : null;
+  if (!filters) return;
+  try {
+    const host = document.querySelector('[data-gantt-livewire-id]') || document.querySelector('[wire\\:id]');
+    const id = host
+      ? (host.getAttribute('data-gantt-livewire-id') || host.getAttribute('wire:id'))
+      : null;
+    if (window.Livewire && id) {
+      const component = window.Livewire.find(id);
+      if (component && typeof component.call === 'function') {
+        component.call('saveGanttFilters', filters);
+      }
+    }
+  } catch (_) {}
+};
 
 // Livewire & Custom Event Hooks
 document.addEventListener('livewire:load', () => {
