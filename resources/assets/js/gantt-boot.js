@@ -52,6 +52,18 @@ window.__ganttEscape = window.__ganttEscape || function (str) {
     .replace(/'/g, '&#39;');
 };
 
+// Config helper
+window.__ganttGetConfig = function () {
+  const el = document.getElementById('gantt_here');
+  if (!el || !el.dataset.ganttConfig) return {};
+  try {
+    const parsed = JSON.parse(el.dataset.ganttConfig);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+};
+
 // Status Icon SVG Mapper
 window.__ganttStatusIconSvg = function (iconClass) {
   const map = {
@@ -66,19 +78,42 @@ window.__ganttStatusIconSvg = function (iconClass) {
 window.__ganttTemplates = {
   assignee: task => {
     if (!task.assignee) return '';
-    const path = task.assignee.profile_photo_url || task.assignee.profile_photo_path || '';
-    const name = task.assignee.name || 'User';
-    const avatarUrl = path 
-      ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + path.replace(/^\//, ''))
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF`;
+    const cfg = window.__ganttConfig || {};
+    const urlKeys = cfg.avatar_url_fields || ['profile_photo_url', 'profile_photo_path'];
+    const nameKeys = cfg.avatar_name_fields || ['name'];
+    const fallbackTpl = cfg.avatar_fallback || 'https://ui-avatars.com/api/?name={name}&color=7F9CF5&background=EBF4FF';
+
+    let path = '';
+    for (const k of urlKeys) {
+      if (task.assignee && task.assignee[k]) { path = task.assignee[k]; break; }
+    }
+    let name = 'User';
+    for (const k of nameKeys) {
+      if (task.assignee && task.assignee[k]) { name = task.assignee[k]; break; }
+    }
+
+    const avatarUrl = path
+      ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + String(path).replace(/^\//, ''))
+      : fallbackTpl.replace('{name}', encodeURIComponent(name));
     
     return `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;vertical-align:middle;border:1px solid #e5e7eb;display:block;margin:0 auto;" title="${window.__ganttEscape(name)}">`;
   },
   priority: obj => {
+    const cfg = window.__ganttConfig || {};
+    const colors = cfg.priority_colors || {};
+    const high = colors.high || {};
+    const med = colors.medium || {};
+    const low = colors.low || {};
+    const highBg = high.badge_bg || '#fee2e2';
+    const highText = high.badge_text || '#b91c1c';
+    const medBg = med.badge_bg || '#fef3c7';
+    const medText = med.badge_text || '#b45309';
+    const lowBg = low.badge_bg || '#dcfce7';
+    const lowText = low.badge_text || '#15803d';
     const p = (obj.priority || '').toString().toLowerCase();
-    if (p === 'high' || p === '1') return '<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider">High</span>';
-    if (p === 'medium' || p === '2' || p === 'normal') return '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider">Normal</span>';
-    if (p === 'low' || p === '3') return '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">Low</span>';
+    if (p === 'high' || p === '1') return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style="background:${highBg};color:${highText};">High</span>`;
+    if (p === 'medium' || p === '2' || p === 'normal') return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style="background:${medBg};color:${medText};">Normal</span>`;
+    if (p === 'low' || p === '3') return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style="background:${lowBg};color:${lowText};">Low</span>`;
     return (obj.priority ?? '').toString();
   }
 };
@@ -105,6 +140,7 @@ window.__initGantt = async function () {
   }
 
   if (el.dataset.ganttInited === '1') {
+    window.__ganttConfig = window.__ganttGetConfig();
     window.__ganttInitDropdownFilters();
 
     // Dynamic column update: check if columns changed since last init
@@ -144,6 +180,7 @@ window.__initGantt = async function () {
   }
   el.dataset.ganttInited = '1';
 
+  window.__ganttConfig = window.__ganttGetConfig();
   window.__applyGanttTheme(false);
   gantt.plugins({ quick_info: true, export_api: true, marker: true });
   gantt.config.date_format = "%Y-%m-%d %H:%i:%s";
@@ -211,18 +248,32 @@ window.__initGantt = async function () {
       ? `<span class="gantt-status-icon" style="margin-right:6px;display:inline-flex;align-items:center;vertical-align:middle;">${window.__ganttStatusIconSvg(iconClass)}</span>`
       : '';
     
-    let avatarUrl = '';
-    const name = task.assignee ? (task.assignee.name || 'User') : '';
+    const cfg = window.__ganttConfig || {};
+    const urlKeys = cfg.avatar_url_fields || ['profile_photo_url', 'profile_photo_path'];
+    const nameKeys = cfg.avatar_name_fields || ['name'];
+    const fallbackTpl = cfg.avatar_fallback || 'https://ui-avatars.com/api/?name={name}&color=7F9CF5&background=EBF4FF';
+
+    let name = 'User';
     if (task.assignee) {
-      const path = task.assignee.profile_photo_url || task.assignee.profile_photo_path || '';
-      avatarUrl = path 
-        ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + path.replace(/^\//, ''))
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF`;
+      for (const k of nameKeys) {
+        if (task.assignee[k]) { name = task.assignee[k]; break; }
+      }
+    }
+
+    let avatarUrl = '';
+    if (task.assignee) {
+      let path = '';
+      for (const k of urlKeys) {
+        if (task.assignee[k]) { path = task.assignee[k]; break; }
+      }
+      avatarUrl = path
+        ? ((path.startsWith('http') || path.startsWith('//') || path.startsWith('data:')) ? path : '/storage/' + String(path).replace(/^\//, ''))
+        : fallbackTpl.replace('{name}', encodeURIComponent(name));
     }
 
     const assigneeHtml = avatarUrl
       ? `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`
-      : `<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`;
+      : '';
     return assigneeHtml + iconHtml + window.__ganttEscape(task.text || '');
   };
 

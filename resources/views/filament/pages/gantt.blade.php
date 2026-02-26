@@ -11,6 +11,7 @@
         }
         $__ganttJs = $__ganttAssets['js'] ?? ['js/gantt.js', 'js/gantt-boot.js'];
         $__ganttHeight = $__ganttConfig['height'] ?? '75vh';
+        $__ganttUi = $__ganttConfig['ui'] ?? [];
         $__ganttMaterialIcons = (bool) ($__ganttConfig['include_material_icons'] ?? true);
         $__resolveAsset = function (string $path): string {
             if (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://', '//'])) {
@@ -29,6 +30,19 @@
     @endphp
 
     <div class="space-y-4 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10" x-data data-gantt-livewire-id="{{ $this->getId() }}">
+        @php
+            $priorityColors = $__ganttUi['priority_colors'] ?? [];
+            $pHigh = $priorityColors['high']['bar'] ?? '#ef4444';
+            $pMed = $priorityColors['medium']['bar'] ?? '#f59e0b';
+            $pLow = $priorityColors['low']['bar'] ?? '#22c55e';
+        @endphp
+        <style>
+            :root {
+                --gantt-priority-high: {{ $pHigh }};
+                --gantt-priority-medium: {{ $pMed }};
+                --gantt-priority-low: {{ $pLow }};
+            }
+        </style>
         {{-- Toolbar: Filters, Export, Zoom --}}
         <div class="flex justify-between items-center">
             <div class="flex items-center gap-1">
@@ -148,7 +162,14 @@
                 @endpush
             @endonce
 
-            <div id="gantt_here" style="width: 100%; height:{{ $__ganttHeight }}" data-gantt-data='@json($ganttData)' data-gantt-columns='@json($this->ganttColumns)' data-gantt-filters='@json($this->ganttFilterPrefs ?? [])'></div>
+            <div
+                id="gantt_here"
+                style="width: 100%; height:{{ $__ganttHeight }}"
+                data-gantt-data='@json($ganttData)'
+                data-gantt-columns='@json($this->ganttColumns)'
+                data-gantt-filters='@json($this->ganttFilterPrefs ?? [])'
+                data-gantt-config='@json($__ganttUi)'
+            ></div>
         </div>
     </div>
 </x-filament-panels::page>
