@@ -3,7 +3,11 @@
         $__ganttTasksCount = $this->getGanttTasksCount();
         $__ganttConfig = config('filament-gantt');
         $__ganttAssets = $__ganttConfig['assets'] ?? [];
-        $__ganttCss = $__ganttAssets['css'] ?? 'css/gantt.css';
+        $__ganttCss = $__ganttAssets['css'] ?? ['css/gantt.css'];
+        $__ganttCss[] = 'css/gantt-custom.css';
+        if (is_string($__ganttCss)) {
+            $__ganttCss = [$__ganttCss];
+        }
         $__ganttJs = $__ganttAssets['js'] ?? ['js/gantt.js', 'js/gantt-boot.js'];
         $__ganttHeight = $__ganttConfig['height'] ?? '75vh';
         $__ganttMaterialIcons = (bool) ($__ganttConfig['include_material_icons'] ?? true);
@@ -28,55 +32,158 @@
         <div class="flex flex-wrap gap-2 items-center">
             <div class="flex items-center gap-3 rounded-lg px-3 py-2 dark:bg-[#202327] bg-gray-50 ring-1 ring-gray-950/5 dark:ring-white/10">
                 <div class="relative flex items-center gap-3" x-data="{ open: false }" @keydown.escape.window="open = false">
-                    <x-filament::button color="secondary" size="md" icon="heroicon-o-funnel" tooltip="Filters" class="p-2! rounded-full" @click="open = !open">
+                    <x-filament::button
+                        color="secondary"
+                        size="md"
+                        icon="heroicon-o-funnel"
+                        tooltip="{{ __('Open filters') }}"
+                        class="p-2! rounded-full"
+                        @click="open = !open"
+                    >
                         {{ __('Filters') }}
                     </x-filament::button>
                     <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300" title="{{ __('Total tasks shown in Gantt') }}">
                         <span>{{ $__ganttTasksCount }}</span>
                         <span>{{ Str::plural('Task', $__ganttTasksCount) }}</span>
                     </span>
-                    <div x-show="open" x-transition x-cloak @click.away="open = false" class="absolute z-50 mt-2 w-96 bg-white dark:bg-[#212429] border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-6 space-y-6" style="display: none;">
-                        <div class="filters_wrapper flex flex-wrap items-center gap-4" id="filters_wrapper">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 w-full">{{ __('Priority') }}:</span>
-                            <label class="checked_label inline-flex items-center gap-2 cursor-pointer py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800 transition" data-priority="high">
-                                <input type="checkbox" name="high" value="1" class="hidden" checked>
-                                <i class="material-icons icon_color text-red-500">check_box</i>
-                                <span class="text-xs font-medium">{{ __('High') }}</span>
-                            </label>
-                            <label class="checked_label inline-flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800 transition" data-priority="medium">
-                                <input type="checkbox" name="medium" value="1" class="hidden" checked>
-                                <i class="material-icons icon_color text-yellow-500">check_box</i>
-                                <span class="text-xs font-medium">{{ __('Normal') }}</span>
-                            </label>
-                            <label class="checked_label inline-flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800 transition" data-priority="low">
-                                <input type="checkbox" name="low" value="1" class="hidden" checked>
-                                <i class="material-icons icon_color text-green-500">check_box</i>
-                                <span class="text-xs font-medium">{{ __('Low') }}</span>
-                            </label>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('Sort by') }}:</span>
-                            <div class="flex gap-4">
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="sort_option" value="priority" class="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700">
-                                    <span class="text-xs font-medium">{{ __('Priority') }}</span>
-                                </label>
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="sort_option" value="name" class="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700">
-                                    <span class="text-xs font-medium">{{ __('Name') }}</span>
-                                </label>
+                    <div
+                        x-show="open"
+                        x-cloak
+                        class="fixed inset-0 z-[9999]"
+                        style="display: none;"
+                        aria-modal="true"
+                        role="dialog"
+                        @click="open = false"
+                    >
+                        <div class="absolute inset-0 bg-slate-950/35 backdrop-blur-[1px]"></div>
+                        <div
+                            x-show="open"
+                            x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="translate-x-full opacity-0"
+                            x-transition:enter-end="translate-x-0 opacity-100"
+                            x-transition:leave="transition ease-in duration-150"
+                            x-transition:leave-start="translate-x-0 opacity-100"
+                            x-transition:leave-end="translate-x-full opacity-0"
+                            class="gantt_filters_panel absolute inset-y-0 right-0 w-full max-w-md bg-white dark:bg-[#212429] border-l border-gray-200 dark:border-gray-700 shadow-2xl p-5 "
+                            @click.stop
+                        >
+                                <div class="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold">{{ __('Filters') }}</h3>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Refine what you see in the Gantt grid.') }}</p>
+                                    </div>
+                                    <button type="button" class="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800" @click="open = false" aria-label="{{ __('Close') }}">
+                                        <x-heroicon-o-x-mark class="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div class="flex flex-col gap-4 max-h-[calc(100vh-96px)] overflow-y-auto pr-1">
+                                {{-- Priority chips --}}
+                                <div
+                                    id="filters_wrapper"
+                                    class="filters_wrapper gantt_filter_card rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/40 px-3 py-3 flex flex-col gap-3"
+                                >
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                {{ __('Priority') }}
+                                            </span>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                {{ __('Show tasks matching these priorities.') }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <label
+                                            class="checked_label inline-flex items-center gap-2 cursor-pointer rounded-full px-3 py-1 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-100"
+                                            data-priority="high"
+                                        >
+                                            <input type="checkbox" name="high" value="1" class="hidden" checked>
+                                            <i class="material-icons icon_color text-red-500 text-base">check_box</i>
+                                            <span>{{ __('High') }}</span>
+                                        </label>
+                                        <label
+                                            class="checked_label inline-flex items-center gap-2 cursor-pointer rounded-full px-3 py-1 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-100"
+                                            data-priority="medium"
+                                        >
+                                            <input type="checkbox" name="medium" value="1" class="hidden" checked>
+                                            <i class="material-icons icon_color text-yellow-500 text-base">check_box</i>
+                                            <span>{{ __('Normal') }}</span>
+                                        </label>
+                                        <label
+                                            class="checked_label inline-flex items-center gap-2 cursor-pointer rounded-full px-3 py-1 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-100"
+                                            data-priority="low"
+                                        >
+                                            <input type="checkbox" name="low" value="1" class="hidden" checked>
+                                            <i class="material-icons icon_color text-green-500 text-base">check_box</i>
+                                            <span>{{ __('Low') }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {{-- Sorting --}}
+                                <div class="gantt_filter_card rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/40 px-3 py-3 flex flex-col gap-3">
+                                    <div>
+                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                            {{ __('Sort by') }}
+                                        </span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {{ __('Change how tasks are ordered in the grid.') }}
+                                        </p>
+                                    </div>
+                                    <div class="inline-flex gap-2 rounded-full bg-white/80 dark:bg-[#202327] p-1">
+                                        <label class="gantt_sort_toggle inline-flex flex-1 items-center justify-center gap-1 cursor-pointer rounded-full px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50/80 dark:hover:bg-gray-700">
+                                            <input
+                                                type="radio"
+                                                name="sort_option"
+                                                value="priority"
+                                                class="sr-only"
+                                            >
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                            <span>{{ __('Priority') }}</span>
+                                        </label>
+                                        <label class="gantt_sort_toggle inline-flex flex-1 items-center justify-center gap-1 cursor-pointer rounded-full px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50/80 dark:hover:bg-gray-700">
+                                            <input
+                                                type="radio"
+                                                name="sort_option"
+                                                value="name"
+                                                class="sr-only"
+                                            >
+                                            <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                                            <span>{{ __('Name') }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                            {{-- Column visibility --}}
+                            <div class="gantt_filter_card rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/40 px-3 py-3 flex flex-col gap-3">
+                                <div>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        {{ __('Columns') }}
+                                    </span>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        {{ __('Toggle which fields are visible in the left grid.') }}
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    @foreach($this->ganttColumns as $column)
+                                        @if(isset($column['name']))
+                                            <label class="inline-flex items-center gap-2 cursor-pointer text-xs">
+                                                <input
+                                                    type="checkbox"
+                                                    class="gantt-col-toggle form-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
+                                                    data-col="{{ $column['name'] }}"
+                                                    checked
+                                                >
+                                                <span class="text-xs font-medium text-gray-700 dark:text-gray-200">
+                                                    {{ __($column['label'] ?? ucfirst($column['name'])) }}
+                                                </span>
+                                            </label>
+                                        @endif
+                                    @endforeach
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('Columns') }}:</span>
-                            @foreach($this->ganttColumns as $column)
-                                @if(isset($column['name']) && $column['name'] !== 'text')
-                                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" class="gantt-col-toggle form-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700" data-col="{{ $column['name'] }}" checked>
-                                        <span class="text-xs font-medium">{{ __($column['label'] ?? ucfirst($column['name'])) }}</span>
-                                    </label>
-                                @endif
-                            @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,161 +220,12 @@
         <div wire:ignore @class(['hidden' => $__ganttTasksCount === 0])>
             @once
                 @push('styles')
-                    <link href="{{ $__resolveAsset($__ganttCss) }}" rel="stylesheet" />
                     @if ($__ganttMaterialIcons)
                         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
                     @endif
-                    <style>
-                        /* Filament-inspired Modern Gantt UI Enhancements */
-                        .gantt_task_line {
-                            border-radius: 6px !important;
-                            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-                            border: 1px solid rgba(255, 255, 255, 0.2);
-                            transition: all 0.2s ease-in-out;
-                        }
-                        .gantt_task_line:hover {
-                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-                            transform: translateY(-1px);
-                            z-index: 10;
-                        }
-                        .gantt_task_progress {
-                            border-radius: 5px !important;
-                            background: rgba(0, 0, 0, 0.15) !important;
-                        }
-                        .dark .gantt_task_progress {
-                            background: rgba(255, 255, 255, 0.2) !important;
-                        }
-                        .gantt_task_content {
-                            font-size: 13px;
-                            font-weight: 500;
-                            color: #fff;
-                            text-align: start;
-                            padding-left: 5px;                            
-                        }
-                        .gantt_grid_scale, .gantt_task_scale {
-                            background-color: transparent !important;
-                            border-bottom: 1px solid var(--fi-color-gray-200) !important;
-                        }
-                        .dark .gantt_grid_scale, .dark .gantt_task_scale {
-                            border-bottom-color: var(--fi-color-gray-700) !important;
-                        }
-                        .gantt_grid_scale .gantt_scale_cell {
-                            font-weight: 600;
-                            color: var(--fi-color-gray-700) !important;
-                        }
-                        .dark .gantt_grid_scale .gantt_scale_cell {
-                            color: var(--fi-color-gray-300) !important;
-                        }
-                        .gantt_task_scale .gantt_scale_cell {
-                            font-weight: 500;
-                            color: var(--fi-color-gray-600) !important;
-                        }
-                        .dark .gantt_task_scale .gantt_scale_cell {
-                            color: var(--fi-color-gray-400) !important;
-                        }
-                        .gantt_grid_data .gantt_row.gantt_selected, 
-                        .gantt_task_data .gantt_row.gantt_selected {
-                            background-color: rgba(var(--fi-color-primary-500), 0.05) !important;
-                        }
-                        .dark .gantt_grid_data .gantt_row.gantt_selected, 
-                        .dark .gantt_task_data .gantt_row.gantt_selected {
-                            background-color: rgba(var(--fi-color-primary-500), 0.15) !important;
-                        }
-                        .gantt_grid_data .gantt_row:hover, 
-                        .gantt_task_data .gantt_row:hover {
-                            background-color: var(--fi-color-gray-50) !important;
-                        }
-                        .dark .gantt_grid_data .gantt_row:hover, 
-                        .dark .gantt_task_data .gantt_row:hover {
-                            background-color: rgba(255,255,255,0.03) !important;
-                        }
-                        .gantt_grid_data .gantt_row {
-                            border-bottom: 1px solid var(--fi-color-gray-200) !important;
-                        }
-                        .dark .gantt_grid_data .gantt_row {
-                            border-bottom-color: var(--fi-color-gray-800) !important;
-                        }
-                        .gantt_task_row {
-                            border-bottom: 1px dashed var(--fi-color-gray-200) !important;
-                        }
-                        .dark .gantt_task_row {
-                            border-bottom-color: rgba(255,255,255,0.05) !important;
-                        }
-                        /* Priority Colors */
-                        .gantt_task_line.high { background-color: rgb(239 68 68) !important; border-color: rgb(220 38 38) !important; }
-                        .gantt_task_line.medium { background-color: rgb(245 158 11) !important; border-color: rgb(217 119 6) !important; }
-                        .gantt_task_line.low { background-color: rgb(34 197 94) !important; border-color: rgb(22 163 74) !important; }
-                        
-                        /* Layout borders */
-                        .gantt_layout_cell, .gantt_layout_root {
-                            border-color: var(--fi-color-gray-200) !important;
-                        }
-                        .dark .gantt_layout_cell, .dark .gantt_layout_root {
-                            border-color: var(--fi-color-gray-800) !important;
-                        }
-                        /* Tooltip enhancement */
-                        .gantt_tooltip {
-                            background: rgba(17, 24, 39, 0.95) !important;
-                            backdrop-filter: blur(4px);
-                            border: 1px solid rgba(255,255,255,0.1) !important;
-                            border-radius: 8px !important;
-                            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-                            color: #fff !important;
-                            font-size: 13px !important;
-                            padding: 10px 14px !important;
-                            z-index: 10000 !important;
-                        }
-                        .dark .gantt_tooltip {
-                            background: rgba(30, 41, 59, 0.95) !important;
-                        }
-                        /* Remove inner borders on tooltips if they exist */
-                        .gantt_tooltip * { border: none !important; }
-                        
-                        /* Avatar fix */
-                        .gantt-assignee-avatar {
-                            box-shadow: 0 0 0 2px white;
-                            display: inline-flex;
-                        }
-                        .dark .gantt-assignee-avatar {
-                            box-shadow: 0 0 0 2px #1f2937;
-                        }
-                        
-                        /* Links (Lines between tasks) */
-                        .gantt_task_link .gantt_line_wrapper div {
-                            background-color: #94a3b8 !important;
-                        }
-                        .dark .gantt_task_link .gantt_line_wrapper div {
-                            background-color: #64748b !important;
-                        }
-                        .gantt_task_link .gantt_link_arrow {
-                            border-left-color: #94a3b8 !important;
-                        }
-                        .dark .gantt_task_link .gantt_link_arrow {
-                            border-left-color: #64748b !important;
-                        }
-                        
-                        /* Today Marker */
-                        .today_marker {
-                            background-color: var(--fi-color-primary-500) !important;
-                            opacity: 0.4;
-                        }
-                        .dark .today_marker {
-                            background-color: var(--fi-color-primary-400) !important;
-                            opacity: 0.3;
-                        }
-                        .gantt_marker_content {
-                            background-color: var(--fi-color-primary-600) !important;
-                            color: white !important;
-                            border-radius: 4px;
-                            padding: 2px 6px;
-                            font-size: 11px;
-                            font-weight: 600;
-                            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                        }
-                        .dark .gantt_marker_content {
-                            background-color: var(--fi-color-primary-500) !important;
-                        }
-                    </style>
+                    @foreach ($__ganttCss as $__ganttCssFile)
+                        <link href="{{ $__resolveAsset($__ganttCssFile) }}" rel="stylesheet" />
+                    @endforeach
                 @endpush
 
                 @push('scripts')

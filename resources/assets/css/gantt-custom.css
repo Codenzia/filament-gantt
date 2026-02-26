@@ -1,0 +1,209 @@
+/* Filament-inspired Modern Gantt UI Enhancements */
+.gantt_task_line {
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease-in-out;
+}
+.gantt_task_line:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+    z-index: 10;
+}
+.gantt_task_progress {
+    border-radius: 5px !important;
+    background: rgba(0, 0, 0, 0.15) !important;
+}
+.dark .gantt_task_progress {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+.gantt_task_content {
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    text-align: start;
+    padding-left: 5px;
+    display: flex;
+}
+.gantt_grid_scale, .gantt_task_scale {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--fi-color-gray-200) !important;
+}
+.dark .gantt_grid_scale, .dark .gantt_task_scale {
+    border-bottom-color: var(--fi-color-gray-700) !important;
+}
+.gantt_grid_scale .gantt_scale_cell {
+    font-weight: 600;
+    color: var(--fi-color-gray-700) !important;
+}
+.dark .gantt_grid_scale .gantt_scale_cell {
+    color: var(--fi-color-gray-300) !important;
+}
+.gantt_task_scale .gantt_scale_cell {
+    font-weight: 500;
+    color: var(--fi-color-gray-600) !important;
+}
+.dark .gantt_task_scale .gantt_scale_cell {
+    color: var(--fi-color-gray-400) !important;
+}
+.gantt_grid_data .gantt_row.gantt_selected,
+.gantt_task_data .gantt_row.gantt_selected {
+    background-color: rgba(var(--fi-color-primary-500), 0.05) !important;
+}
+.dark .gantt_grid_data .gantt_row.gantt_selected,
+.dark .gantt_task_data .gantt_row.gantt_selected {
+    background-color: rgba(var(--fi-color-primary-500), 0.15) !important;
+}
+.gantt_grid_data .gantt_row:hover,
+.gantt_task_data .gantt_row:hover {
+    background-color: var(--fi-color-gray-50) !important;
+}
+.dark .gantt_grid_data .gantt_row:hover,
+.dark .gantt_task_data .gantt_row:hover {
+    background-color: rgba(255,255,255,0.03) !important;
+}
+.gantt_grid_data .gantt_row {
+    border-bottom: 1px solid var(--fi-color-gray-200) !important;
+}
+.dark .gantt_grid_data .gantt_row {
+    border-bottom-color: var(--fi-color-gray-800) !important;
+}
+.gantt_task_row {
+    border-bottom: 1px dashed var(--fi-color-gray-200) !important;
+}
+
+/* Priority Colors */
+.gantt_task_line.high { background-color: rgb(239 68 68) !important; border-color: rgb(220 38 38) !important; }
+.gantt_task_line.medium { background-color: rgb(245 158 11) !important; border-color: rgb(217 119 6) !important; }
+.gantt_task_line.low { background-color: rgb(34 197 94) !important; border-color: rgb(22 163 74) !important; }
+
+/* Layout borders */
+.gantt_layout_cell, .gantt_layout_root {
+    border-color: var(--fi-color-gray-200) !important;
+}
+.dark .gantt_layout_cell, .dark .gantt_layout_root {
+    border-color: var(--fi-color-gray-800) !important;
+}
+
+/* Grid resize handle (between data and dates) */
+.gantt_grid_resize_area {
+    background-color: rgba(148, 163, 184, 0.35) !important;
+    width: 6px !important;
+    cursor: col-resize !important;
+}
+.dark .gantt_grid_resize_area {
+    background-color: rgba(100, 116, 139, 0.45) !important;
+}
+
+/* Filters panel refresh */
+.gantt_filters_panel {
+    color: #0f172a;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    z-index: 9999;
+}
+.dark .gantt_filters_panel {
+    color: #e2e8f0;
+    background: #16181c !important;
+}
+.gantt_filter_card {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+}
+.dark .gantt_filter_card {
+    background: #161a22 !important;
+    border-color: rgba(148, 163, 184, 0.2) !important;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+.gantt_filters_panel .text-gray-500,
+.gantt_filters_panel .text-gray-400,
+.gantt_filters_panel .text-gray-700,
+.gantt_filters_panel .text-gray-200 {
+    color: inherit !important;
+}
+.gantt_filters_panel p {
+    color: #475569 !important;
+}
+.dark .gantt_filters_panel p {
+    color: #94a3b8 !important;
+}
+.gantt_filters_panel .checked_label {
+    background: #f8fafc !important;
+    flex: 1;
+}
+.dark .gantt_filters_panel .checked_label {
+    background: #202327 !important;
+}
+.gantt_sort_toggle.is-active {
+    background: #e0f2fe !important;
+    color: #0f172a !important;
+    box-shadow: inset 0 0 0 1px rgba(14, 116, 144, 0.25);
+}
+.dark .gantt_sort_toggle.is-active {
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+
+/* Tooltip enhancement */
+.gantt_tooltip {
+    background: rgba(17, 24, 39, 0.95) !important;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    color: #fff !important;
+    font-size: 13px !important;
+    padding: 10px 14px !important;
+    z-index: 10000 !important;
+}
+.dark .gantt_tooltip {
+    background: rgba(30, 41, 59, 0.95) !important;
+}
+/* Remove inner borders on tooltips if they exist */
+.gantt_tooltip * { border: none !important; }
+
+/* Avatar fix */
+.gantt-assignee-avatar {
+    box-shadow: 0 0 0 2px white;
+    display: inline-flex;
+}
+.dark .gantt-assignee-avatar {
+    box-shadow: 0 0 0 2px #1f2937;
+}
+
+/* Links (Lines between tasks) */
+.gantt_task_link .gantt_line_wrapper div {
+    background-color: #94a3b8 !important;
+}
+.dark .gantt_task_link .gantt_line_wrapper div {
+    background-color: #64748b !important;
+}
+.gantt_task_link .gantt_link_arrow {
+    border-left-color: #94a3b8 !important;
+}
+.dark .gantt_task_link .gantt_link_arrow {
+    border-left-color: #64748b !important;
+}
+
+/* Today Marker */
+.today_marker {
+    background-color: var(--fi-color-primary-500) !important;
+    opacity: 0.4;
+}
+.dark .today_marker {
+    background-color: var(--fi-color-primary-400) !important;
+    opacity: 0.3;
+}
+.gantt_marker_content {
+    background-color: var(--fi-color-primary-600) !important;
+    color: white !important;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.dark .gantt_marker_content {
+    background-color: var(--fi-color-primary-500) !important;
+}

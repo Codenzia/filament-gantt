@@ -21,6 +21,7 @@ class FilamentGanttServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__ . '/../resources/assets/css/gantt.css' => public_path('css/gantt.css'),
+            __DIR__ . '/../resources/assets/css/gantt-custom.css' => public_path('css/gantt-custom.css'),
         ], 'filament-gantt-assets');
 
         $this->publishes([

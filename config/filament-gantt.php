@@ -3,7 +3,10 @@
 return [
     // Asset paths or URLs. Local paths are resolved via asset().
     'assets' => [
-        'css' => 'css/gantt.css',
+        'css' => [
+            'css/gantt.css',
+            'css/gantt-custom.css',
+        ],
         'js' => [
             'js/gantt.js',
             'js/gantt-boot.js',

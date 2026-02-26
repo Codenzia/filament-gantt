@@ -41,29 +41,35 @@ abstract class Gantt extends Page implements HasActions, HasForms
 
         $this->ganttColumns = ! empty($ganttColumns)
             ? $ganttColumns
-            : $this->getDefaultGanttColumns();
+            : (! empty($this->ganttColumns) ? $this->ganttColumns : $this->getGanttColumns());
     }
 
-    protected function getDefaultGanttColumns(): array
-    {
-        return [
-            ['name' => 'text', 'label' => 'Task name', 'tree' => true, 'width' => '*', 'resize' => true],
-            ['name' => 'assignee', 'label' => 'Assignee', 'align' => 'center', 'width' => 70, 'template' => 'assignee'],
-            ['name' => 'start_date', 'label' => 'Start time', 'align' => 'center', 'resize' => true],
-            ['name' => 'priority', 'label' => 'Priority', 'align' => 'center', 'width' => 90, 'template' => 'priority'],
-            ['name' => 'status', 'label' => 'Status', 'align' => 'center', 'width' => 90, 'resize' => true],
-        ];
-    }
+    // protected function getGanttColumns(): array
+    // {
+    //     return [
+    //         ['name' => 'text', 'label' => 'Task name', 'tree' => true, 'width' => '*', 'resize' => true],
+    //         ['name' => 'start_date', 'label' => 'Start time', 'align' => 'center', 'resize' => true],
+    //         ['name' => 'priority', 'label' => 'Priority', 'align' => 'center', 'width' => 90, 'template' => 'priority'],
+    //         ['name' => 'status', 'label' => 'Status', 'align' => 'center', 'width' => 90, 'resize' => true],
+    //     ];
+    // }
 
     public function setGanttData(array $ganttData): void
     {
         $this->ganttData = $ganttData;
     }
 
+    public function setGanttColumns(array $ganttColumns): void
+    {
+        $this->ganttColumns = $ganttColumns;
+    }
+
     public function getGanttData(): array
     {
         return $this->ganttData;
     }
+
+    abstract protected function getGanttColumns(): array;
 
     abstract protected function getGanttDataArray(?int $projectId = null, array $assigneeFilter = []): array;
 

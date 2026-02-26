@@ -139,6 +139,8 @@ window.__initGantt = async function () {
   gantt.config.details_on_dblclick = false; // Usually double-click is better not to trigger default lightbox if you use custom Filament modals
   gantt.config.show_errors = false;
   gantt.config.grid_width = 380;
+  gantt.config.grid_resize = true;
+  gantt.config.grid_resize_columns = true;
   
   // Custom tooltips
   gantt.templates.tooltip_text = function(start, end, task){
@@ -219,8 +221,39 @@ window.__initGantt = async function () {
   gantt.init('gantt_here');
   window.__ganttInitedOnce = true;
 
+  // Row height controls (resize gantt rows)
+  if (!window.__ganttRowHeightDefaults) {
+    window.__ganttRowHeightDefaults = {
+      row: gantt.config.row_height,
+      bar: gantt.config.bar_height
+    };
+  }
+  window.__ganttResizeRows = function (delta) {
+    if (!window.gantt) return;
+    const minRow = 26;
+    const maxRow = 90;
+    const minBar = 16;
+    const maxBar = 70;
+    const nextRow = Math.min(maxRow, Math.max(minRow, gantt.config.row_height + delta));
+    const nextBar = Math.min(maxBar, Math.max(minBar, Math.round(gantt.config.bar_height + (delta * 0.7))));
+    gantt.config.row_height = nextRow;
+    gantt.config.bar_height = Math.min(nextBar, nextRow - 8);
+    gantt.render();
+  };
+  window.__ganttResetRows = function () {
+    if (!window.gantt || !window.__ganttRowHeightDefaults) return;
+    gantt.config.row_height = window.__ganttRowHeightDefaults.row;
+    gantt.config.bar_height = window.__ganttRowHeightDefaults.bar;
+    gantt.render();
+  };
+
   const dataGanttData = el.dataset.ganttData ? JSON.parse(el.dataset.ganttData) : null;
   gantt.parse(dataGanttData || { data: [], links: [] });
+
+  // Ensure a paint after init (helps on hard refresh/slow layouts)
+  setTimeout(() => {
+    try { gantt.render(); } catch (_) {}
+  }, 0);
 
   // --- API sync helpers (configure base URL if needed) ---
   window.__ganttApiBase = window.__ganttApiBase || '/api/tasks'; // change if your endpoint differs
@@ -338,6 +371,20 @@ window.__initGantt = async function () {
   window.__ensureGanttThemeObserver();
 };
 
+// Retry init on refresh/hard reloads where assets or DOM race
+window.__ensureGanttInit = function (retries = 6) {
+  const el = document.getElementById('gantt_here');
+  if (!el || !window.gantt) return;
+  const needsInit = el.dataset.ganttInited !== '1' || !gantt.$root || el.offsetHeight === 0;
+  if (needsInit) {
+    try { delete el.dataset.ganttInited; } catch (_) {}
+    try { window.__initGantt(); } catch (_) {}
+  }
+  if (retries > 0) {
+    setTimeout(() => window.__ensureGanttInit(retries - 1), 250);
+  }
+};
+
 // Priority Filter Wiring
 window.__wireGanttPriorityFilters = function () {
   const wrap = document.getElementById('filters_wrapper');
@@ -388,15 +435,17 @@ window.__wireGanttPriorityFilters = function () {
 };
 
 // Sorting
-let p_direction = false, n_direction = false;
-function sortByPriority() {
-  gantt.sort("priority", p_direction);
-  p_direction = !p_direction;
-}
-function sortByName() {
-  gantt.sort("text", n_direction);
-  n_direction = !n_direction;
-}
+window.__ganttSortState = window.__ganttSortState || { p_direction: false, n_direction: false };
+window.sortByPriority = function () {
+  if (!window.gantt) return;
+  gantt.sort("priority", window.__ganttSortState.p_direction);
+  window.__ganttSortState.p_direction = !window.__ganttSortState.p_direction;
+};
+window.sortByName = function () {
+  if (!window.gantt) return;
+  gantt.sort("text", window.__ganttSortState.n_direction);
+  window.__ganttSortState.n_direction = !window.__ganttSortState.n_direction;
+};
 
 function exportGantt(mode) {
   var opts = { header: '' };
@@ -629,6 +678,26 @@ function toggleMode(toggle) {
 	}
 
 // Sort Button Wiring
+const __ganttStorageKey = "filament_gantt_columns_v1";
+
+function __loadColumnPrefs() {
+  try {
+    const raw = localStorage.getItem(__ganttStorageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function __saveColumnPrefs(pref) {
+  try {
+    localStorage.setItem(__ganttStorageKey, JSON.stringify(pref));
+  } catch (_) {}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const btnPriority = document.getElementById("sort_priority");
   const btnName = document.getElementById("sort_name");
@@ -637,40 +706,77 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Radio sort option handling
   const sortRadios = document.querySelectorAll('input[name="sort_option"]');
+  const updateSortUi = () => {
+    sortRadios.forEach(radio => {
+      const label = radio.closest('label');
+      if (!label) return;
+      if (radio.checked) label.classList.add('is-active');
+      else label.classList.remove('is-active');
+    });
+  };
   if (sortRadios.length) {
     sortRadios.forEach(r => {
       r.addEventListener('change', e => {
         if (!e.target.checked) return;
         const val = e.target.value;
-        if (val === 'priority') { p_direction = false; sortByPriority(); }
-        else if (val === 'name') { n_direction = false; sortByName(); }
+        if (val === 'priority') { window.__ganttSortState.p_direction = false; window.sortByPriority(); }
+        else if (val === 'name') { window.__ganttSortState.n_direction = false; window.sortByName(); }
+        updateSortUi();
       });
     });
     const initial = Array.from(sortRadios).find(r => r.checked);
     if (initial) {
-      if (initial.value === 'priority') { p_direction = false; sortByPriority(); }
-      else if (initial.value === 'name') { n_direction = false; sortByName(); }
+      if (initial.value === 'priority') { window.__ganttSortState.p_direction = false; window.sortByPriority(); }
+      else if (initial.value === 'name') { window.__ganttSortState.n_direction = false; window.sortByName(); }
     }
+    updateSortUi();
   }
 
   // Column visibility toggles
   const colToggles = document.querySelectorAll('.gantt-col-toggle');
   if (colToggles.length) {
+    const saved = __loadColumnPrefs();
+    if (saved) {
+      colToggles.forEach(cb => {
+        const col = cb.getAttribute("data-col");
+        if (col && Object.prototype.hasOwnProperty.call(saved, col)) {
+          cb.checked = !!saved[col];
+        }
+      });
+    }
     colToggles.forEach(cb => cb.addEventListener('change', () => applyColumnVisibility()));
     applyColumnVisibility();
   }
+
+  // Ensure gantt is visible on initial load
+  setTimeout(() => window.__ensureGanttInit && window.__ensureGanttInit(6), 80);
+});
+
+window.addEventListener('load', () => {
+  setTimeout(() => window.__ensureGanttInit && window.__ensureGanttInit(6), 120);
 });
 
 function applyColumnVisibility() {
   if (!window.gantt || !window.__ganttOriginalColumns) return;
-  
+
   gantt.config.columns = window.__ganttOriginalColumns.filter(col => {
     const toggle = document.querySelector(`.gantt-col-toggle[data-col="${col.name}"]`);
-    if (!toggle) return true; // Always show if no toggle exists
+    if (!toggle) return true;
     return toggle.checked;
   });
   
   gantt.render();
+
+  // Persist user preference
+  const toggles = document.querySelectorAll('.gantt-col-toggle');
+  if (toggles.length) {
+    const pref = {};
+    toggles.forEach(cb => {
+      const col = cb.getAttribute("data-col");
+      if (col) pref[col] = !!cb.checked;
+    });
+    __saveColumnPrefs(pref);
+  }
 }
 
 // Livewire & Custom Event Hooks
