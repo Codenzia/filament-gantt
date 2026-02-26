@@ -50,30 +50,28 @@
         
         <x-filament::dropdown.list>
             <x-filament::dropdown.list.item>
-                <label class="gantt_sort_toggle is-active inline-flex flex-1 items-center justify-center gap-1 cursor-pointer rounded-full px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50/80 dark:hover:bg-gray-700">
+                <label class="gantt_sort_toggle is-active flex w-full items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <input
                         type="radio"
                         name="sort_option"
                         value="priority"
-                        class="sr-only"
+                        class="form-radio text-primary-600 focus:ring-primary-500"
                         checked
                     >
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                     <span>{{ __('Priority') }}</span>
                 </label>
-                </x-filament::dropdown.list.item>
-                <x-filament::dropdown.list.item>
-                <label class="gantt_sort_toggle inline-flex flex-1 items-center justify-center gap-1 cursor-pointer rounded-full px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50/80 dark:hover:bg-gray-700">
+            </x-filament::dropdown.list.item>
+            <x-filament::dropdown.list.item>
+                <label class="gantt_sort_toggle flex w-full items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <input
                         type="radio"
                         name="sort_option"
                         value="name"
-                        class="sr-only"
+                        class="form-radio text-primary-600 focus:ring-primary-500"
                     >
-                    <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                     <span>{{ __('Name') }}</span>
                 </label>
-                </x-filament::dropdown.list.item>
+            </x-filament::dropdown.list.item>
         </x-filament::dropdown.list>
     </x-filament::dropdown>
 </div>

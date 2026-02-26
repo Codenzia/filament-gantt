@@ -224,14 +224,14 @@
     background: #202327 !important;
 }
 .gantt_sort_toggle.is-active {
-    background: #e0f2fe !important;
-    color: #0f172a !important;
-    box-shadow: inset 0 0 0 1px rgba(14, 116, 144, 0.25);
+    background: rgba(148, 163, 184, 0.15) !important;
 }
 .dark .gantt_sort_toggle.is-active {
-    background: #0b1220 !important;
-    color: #e2e8f0 !important;
-    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+    background: rgba(30, 41, 59, 0.6) !important;
+}
+.gantt_sort_toggle:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
 /* Tooltip enhancement */
