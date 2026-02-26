@@ -105,9 +105,7 @@ window.__initGantt = async function () {
   }
 
   if (el.dataset.ganttInited === '1') {
-    if (!document.getElementById('filters_wrapper')?.dataset.filtersInited) {
-      window.__wireGanttPriorityFilters();
-    }
+    window.__ganttInitDropdownFilters();
 
     // Dynamic column update: check if columns changed since last init
     const latestColsRaw = el.dataset.ganttColumns ? JSON.parse(el.dataset.ganttColumns) : null;
@@ -224,11 +222,11 @@ window.__initGantt = async function () {
 
     const assigneeHtml = avatarUrl
       ? `<img src="${window.__ganttEscape(avatarUrl)}" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`
-      : '<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">';
+      : `<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&color=7F9CF5&background=EBF4FF" alt="${window.__ganttEscape(name)}" title="${window.__ganttEscape(name)}" class="gantt-assignee-avatar" style="width:24px;height:24px;border-radius:9999px;object-fit:cover;margin-right:8px;vertical-align:middle;border:1.5px solid #fff;flex-shrink:0;">`;
     return assigneeHtml + iconHtml + window.__ganttEscape(task.text || '');
   };
 
-  window.__wireGanttPriorityFilters();
+  window.__ganttInitDropdownFilters();
 
   gantt.init('gantt_here');
   window.__ganttInitedOnce = true;
@@ -261,11 +259,20 @@ window.__initGantt = async function () {
 
   const dataGanttData = el.dataset.ganttData ? JSON.parse(el.dataset.ganttData) : null;
   gantt.parse(dataGanttData || { data: [], links: [] });
+  window.__ganttInitDropdownFilters();
+
+  // Apply visibility from checkboxes after parse
+  if (typeof applyColumnVisibility === 'function') {
+    applyColumnVisibility();
+  }
 
   // Ensure a paint after init (helps on hard refresh/slow layouts)
   setTimeout(() => {
-    try { gantt.render(); } catch (_) {}
-  }, 0);
+    try { 
+        if (typeof applyColumnVisibility === 'function') applyColumnVisibility();
+        gantt.render(); 
+    } catch (_) {}
+  }, 50);
 
   // --- API sync helpers (configure base URL if needed) ---
   window.__ganttApiBase = window.__ganttApiBase || '/api/tasks'; // change if your endpoint differs
@@ -398,52 +405,154 @@ window.__ensureGanttInit = function (retries = 6) {
 };
 
 // Priority Filter Wiring
-window.__wireGanttPriorityFilters = function () {
-  const wrap = document.getElementById('filters_wrapper');
-  if (!wrap || wrap.dataset.filtersInited === '1') return;
+window.__ganttNormalizePriority = function (val) {
+  const raw = (val || '').toString().toLowerCase();
+  const aliases = { '1': 'high', '2': 'medium', '3': 'low', 'normal': 'medium' };
+  return aliases[raw] || raw;
+};
 
-  const inputs = wrap.querySelectorAll('input[type="checkbox"]');
-  const updateIcon = inputEl => {
-    const label = inputEl.closest('label');
-    if (!label) return;
-    const icon = label.querySelector('i.material-icons');
-    label.classList.toggle('checked_label', inputEl.checked);
-    if (icon) {
-      icon.textContent = inputEl.checked ? 'check_box' : 'check_box_outline_blank';
-      icon.classList.toggle('icon_color', inputEl.checked);
-    }
+window.__ganttExtractValue = function (task, key) {
+  if (!task) return '';
+  if (key === 'assignee') {
+    const a = task.assignee;
+    if (!a) return '';
+    if (typeof a === 'string') return a;
+    return a.name || a.full_name || a.email || '';
+  }
+  if (key === 'project') {
+    const p = task.project || task.project_name || task.projectTitle;
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    return p.name || p.title || '';
+  }
+  if (key === 'status') {
+    const s = task.status || task.status_name || task.state;
+    if (!s) return '';
+    if (typeof s === 'string') return s;
+    return s.name || s.title || '';
+  }
+  if (key === 'type') {
+    const t = task.task_type || task.type_name || task.type;
+    if (!t) return '';
+    if (typeof t === 'string') return t;
+    return t.name || t.title || '';
+  }
+  if (key === 'priority') {
+    return window.__ganttNormalizePriority(task.priority);
+  }
+  return '';
+};
+
+window.__ganttFilters = window.__ganttFilters || {
+  project: new Set(),
+  assignee: new Set(),
+  status: new Set(),
+  type: new Set(),
+  priority: new Set(),
+};
+
+window.__ganttCollectFilterOptions = function () {
+  const options = {
+    project: new Set(),
+    assignee: new Set(),
+    status: new Set(),
+    type: new Set(),
+    priority: new Set(),
   };
-
-  inputs.forEach(updateIcon);
-
-  inputs.forEach(input => {
-    input.addEventListener('change', function () {
-      updateIcon(this);
-      if (window.gantt) gantt.render();
+  if (!window.gantt) return options;
+  gantt.eachTask(task => {
+    if (task.type === 'project') return;
+    ['project', 'assignee', 'status', 'type', 'priority'].forEach(key => {
+      const val = window.__ganttExtractValue(task, key);
+      if (val) options[key].add(val);
     });
   });
+  return options;
+};
 
-  function hasPriority(taskId, priorityName) {
-    const t = gantt.getTask(taskId);
-    const tPri = (t.priority || '').toString().toLowerCase();
-    const pNorm = (priorityName || '').toString().toLowerCase();
-    const aliases = { '1': 'high', '2': 'medium', '3': 'low', 'normal': 'medium' };
-    const normTask = aliases[tPri] || tPri;
-    const normWant = aliases[pNorm] || pNorm;
-    if (normTask === normWant) return true;
-    return (gantt.getChildren(taskId) || []).some(childId => hasPriority(childId, pNorm));
+window.__ganttRenderFilterList = function (key, values) {
+  const list = document.querySelector(`[data-filter-options="${key}"]`);
+  if (!list) return;
+  const sorted = Array.from(values).sort((a, b) => a.localeCompare(b));
+  const renderItem = (value, label, isAll = false) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `gantt_filter_item${isAll ? ' is-all' : ''}`;
+    item.dataset.value = value;
+    item.innerHTML = `<span class="gantt_filter_check">✓</span><span>${window.__ganttEscape(label)}</span>`;
+    item.addEventListener('click', () => {
+      const set = window.__ganttFilters[key];
+      if (isAll) {
+        set.clear();
+      } else {
+        if (set.has(value)) set.delete(value);
+        else set.add(value);
+      }
+      window.__ganttSyncFilterUi(key);
+      if (window.gantt) gantt.render();
+    });
+    return item;
+  };
+  list.innerHTML = '';
+  list.appendChild(renderItem('__all__', 'All', true));
+  if (key === 'priority') {
+    const labels = { high: 'High', medium: 'Medium', low: 'Low' };
+    ['high', 'medium', 'low'].forEach(p => {
+      if (sorted.includes(p)) {
+        list.appendChild(renderItem(p, labels[p]));
+      }
+    });
+  } else {
+    sorted.forEach(v => list.appendChild(renderItem(v, v)));
   }
+  window.__ganttSyncFilterUi(key);
+};
 
+window.__ganttSyncFilterUi = function (key) {
+  const list = document.querySelector(`[data-filter-options="${key}"]`);
+  if (!list) return;
+  const set = window.__ganttFilters[key];
+  const items = list.querySelectorAll('.gantt_filter_item');
+  items.forEach(item => {
+    const val = item.dataset.value;
+    const isAll = item.classList.contains('is-all');
+    const active = isAll ? set.size === 0 : set.has(val);
+    item.classList.toggle('is-active', active);
+  });
+};
+
+window.__ganttApplyDropdownFilters = function () {
+  if (!window.gantt) return;
   if (window.__ganttOnBeforeTaskDisplayId) {
     gantt.detachEvent(window.__ganttOnBeforeTaskDisplayId);
   }
-  window.__ganttOnBeforeTaskDisplayId = gantt.attachEvent("onBeforeTaskDisplay", (id, task) => {
-    const enabled = Array.from(inputs).filter(inp => inp.checked).map(inp => inp.name);
-    if (enabled.length === 0) return false;
-    return enabled.some(priority => hasPriority(id, priority));
+  const passes = (task) => {
+    const keys = ['project', 'assignee', 'status', 'type', 'priority'];
+    for (const key of keys) {
+      const set = window.__ganttFilters[key];
+      if (!set || set.size === 0) continue;
+      const val = window.__ganttExtractValue(task, key);
+      if (!val || !set.has(val)) return false;
+    }
+    return true;
+  };
+  const passesDeep = (id) => {
+    const t = gantt.getTask(id);
+    if (passes(t)) return true;
+    const children = gantt.getChildren(id) || [];
+    return children.some(childId => passesDeep(childId));
+  };
+  window.__ganttOnBeforeTaskDisplayId = gantt.attachEvent("onBeforeTaskDisplay", (id) => {
+    return passesDeep(id);
   });
+};
 
-  wrap.dataset.filtersInited = '1';
+window.__ganttInitDropdownFilters = function () {
+  const hasLists = document.querySelector('[data-filter-options="priority"]');
+  if (!hasLists || !window.gantt) return;
+  const opts = window.__ganttCollectFilterOptions();
+  Object.keys(opts).forEach(key => window.__ganttRenderFilterList(key, opts[key]));
+  window.__ganttApplyDropdownFilters();
 };
 
 // Sorting
@@ -724,21 +833,26 @@ function __getServerFilterPrefs() {
 
 function __applyServerFilterPrefs(prefs) {
   if (!prefs) return;
-  const { priorities, sort, columns } = prefs;
+  const { filters, priorities, sort, columns } = prefs;
 
-  if (priorities && typeof priorities === "object") {
-    const wrap = document.getElementById('filters_wrapper');
-    if (wrap) {
-      const inputs = wrap.querySelectorAll('input[type="checkbox"]');
-      inputs.forEach(cb => {
-        const name = cb.name;
-        if (Object.prototype.hasOwnProperty.call(priorities, name)) {
-          cb.checked = !!priorities[name];
-        }
-      });
-      if (window.__wireGanttPriorityFilters) window.__wireGanttPriorityFilters();
-    }
+  if (filters && typeof filters === "object") {
+    ['project', 'assignee', 'status', 'type', 'priority'].forEach(key => {
+      const list = filters[key];
+      if (Array.isArray(list)) {
+        window.__ganttFilters[key].clear();
+        list.forEach(v => window.__ganttFilters[key].add(v));
+        window.__ganttSyncFilterUi(key);
+      }
+    });
+  } else if (priorities && typeof priorities === "object") {
+    window.__ganttFilters.priority.clear();
+    Object.keys(priorities).forEach(p => {
+      if (priorities[p]) window.__ganttFilters.priority.add(p);
+    });
+    window.__ganttSyncFilterUi('priority');
   }
+  if (window.__ganttApplyDropdownFilters) window.__ganttApplyDropdownFilters();
+  if (window.gantt) gantt.render();
 
   if (sort) {
     const sortRadios = document.querySelectorAll('input[name="sort_option"]');
@@ -803,7 +917,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Column visibility toggles
   const colToggles = document.querySelectorAll('.gantt-col-toggle');
   if (colToggles.length) {
-    const saved = __loadColumnPrefs();
+    const serverPrefs = __getServerFilterPrefs();
+    const saved = serverPrefs?.columns || __loadColumnPrefs();
+    
     if (saved) {
       colToggles.forEach(cb => {
         const col = cb.getAttribute("data-col");
@@ -813,7 +929,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     colToggles.forEach(cb => cb.addEventListener('change', () => applyColumnVisibility()));
-    applyColumnVisibility();
+    if (window.applyColumnVisibility) window.applyColumnVisibility();
   }
 
   const serverPrefs = __getServerFilterPrefs();
@@ -829,7 +945,7 @@ window.addEventListener('load', () => {
   setTimeout(() => window.__ensureGanttInit && window.__ensureGanttInit(6), 120);
 });
 
-function applyColumnVisibility() {
+window.applyColumnVisibility = function() {
   if (!window.gantt || !window.__ganttOriginalColumns) return;
 
   gantt.config.columns = window.__ganttOriginalColumns.filter(col => {
@@ -854,17 +970,26 @@ function applyColumnVisibility() {
 
 window.__ganttGetFilterState = function () {
   const filters = {
+    filters: {
+      project: [],
+      assignee: [],
+      status: [],
+      type: [],
+      priority: [],
+    },
     priorities: {},
     sort: null,
     columns: {},
   };
 
-  const wrap = document.getElementById('filters_wrapper');
-  if (wrap) {
-    const inputs = wrap.querySelectorAll('input[type="checkbox"]');
-    inputs.forEach(cb => {
-      if (cb.name) filters.priorities[cb.name] = !!cb.checked;
-    });
+  ['project', 'assignee', 'status', 'type', 'priority'].forEach(key => {
+    const set = window.__ganttFilters?.[key];
+    if (set && set.size > 0) {
+      filters.filters[key] = Array.from(set);
+    }
+  });
+  if (window.__ganttFilters?.priority) {
+    window.__ganttFilters.priority.forEach(p => { filters.priorities[p] = true; });
   }
 
   const sortRadios = document.querySelectorAll('input[name="sort_option"]');

@@ -18,4 +18,7 @@ return [
 
     // Gantt container height (CSS value).
     'height' => '75vh',
+
+    // Show filters modal.
+    'show_filters_modal' => false,
 ];
