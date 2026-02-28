@@ -1,12 +1,12 @@
 {
   "name": "codenzia/filament-gantt",
-  "description": "Filament Gantt page package",
+  "description": "An interactive Gantt chart page for Filament v4 powered by dhtmlxGantt with drag-and-drop scheduling, filtering, zoom controls, and dark mode.",
   "keywords": [
     "laravel",
     "filament",
-    "db-flow"
+    "gantt"
   ],
-  "homepage": "https://github.com/codenzia/filament-db-flow",
+  "homepage": "https://github.com/codenzia/filament-gantt",
   "authors": [
       {
           "name": "Codenzia",
