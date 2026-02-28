@@ -15,7 +15,7 @@
       }
   ],
   "type": "library",
-  "license": "MIT",
+  "license": ["MIT", "proprietary"],
   "autoload": {
     "psr-4": {
       "Codenzia\\FilamentGantt\\": "src/"
